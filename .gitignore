@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+venv/
+.venv/
+# Keep music out of the public repo unless you own it
+sounds/*.mp3
+.DS_Store
+Thumbs.db

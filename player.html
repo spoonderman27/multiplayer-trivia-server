@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trivia Player</title>
+    <style>
+        /* Import Outfit font from Google Font for style (Weights: Regular, Bold, Black) */
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        h2 {
+            color: #00ffcc;
+            font-size: 2.3em;
+            font-weight: 900;
+            margin-top: 0;
+        }
+
+        #status {
+            color: #ffcc00;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        #ping-badge {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #00ffcc;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.8em;
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            z-index: 1000;
+        }
+
+        .card {
+            background-color: rgba(42, 42, 64, 0.8);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            margin: 0 auto;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        input {
+            padding: 15px;
+            font-size: 1.2em;
+            border-radius: 10px;
+            border: none;
+            width: 80%;
+            margin-bottom: 20px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .join-btn {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background: linear-gradient(90deg, #00ffcc, #00ccff);
+            color: #111;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 900;
+            font-family: 'Outfit', sans-serif;
+            box-shadow: 0 5px 15px rgba(0, 255, 204, 0.4);
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .answer-btn {
+            border: none;
+            border-radius: 15px;
+            padding: 30px;
+            font-size: 1.5em;
+            color: white;
+            font-weight: 900;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .answer-btn:active {
+            transform: scale(0.95);
+        }
+
+        #btn-0 {
+            background-color: #ff3b30;
+        }
+
+        #btn-1 {
+            background-color: #007aff;
+        }
+
+        #btn-2 {
+            background-color: #ffcc00;
+            color: #111;
+        }
+
+        #btn-3 {
+            background-color: #34c759;
+        }
+
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(6, auto);
+            gap: 5px;
+            margin-bottom: 20px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .avatar-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid transparent;
+            border-radius: 50%;
+            font-size: 1.2em;
+            cursor: pointer;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+
+        .avatar-btn.selected {
+            border: 3px solid #ffcc00;
+            background: rgba(255, 204, 0, 0.3);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- system ui for ping, audio and buttons -->
+    <div id="ping-badge">📶 <span id="player-ping">--</span>ms</div>
+
+    <audio id="sfx-bgm" src="sounds/bgm.mp3" loop preload="auto"></audio>
+    <audio id="sfx-correct" src="sounds/correct.mp3" preload="auto"></audio>
+    <audio id="sfx-wrong" src="sounds/wrong.mp3" preload="auto"></audio>
+    <audio id="sfx-tick" src="sounds/tick.mp3" preload="auto"></audio>
+
+    <button id="exit-btn" onclick="window.location.reload()"
+        style="display: none; position: fixed; top: 50px; left: 15px; background: rgba(255,59,48,0.8); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-weight: bold; font-size: 1.2em; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; line-height: 40px; text-align: center; padding: 0;"
+        title="Return to Main Menu">✖</button>
+
+    <button
+        onclick="let bgm = document.getElementById('sfx-bgm'); bgm.volume = 0.15; let slash = this.querySelector('.slash'); if(bgm.paused){bgm.play().then(()=>{slash.style.display='none';}).catch(e=>{console.log(e);});}else{bgm.pause(); slash.style.display='block';}"
+        style="position: fixed; top: 15px; right: 15px; background: #ff69b4; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; padding: 0; box-shadow: none !important; transform: none !important; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2em; z-index: 2000; overflow: hidden;"
+        title="Toggle Music">🎵<div class="slash"
+            style="position: absolute; width: 4px; height: 100%; background: #ff3b30; transform: rotate(45deg); pointer-events: none; border-radius: 2px;">
+        </div></button>
+
+    <div
+        style="display: flex; align-items: center; justify-content: center; gap: 7px; margin-bottom: 10px; max-width: 90vw; margin-left: auto; margin-right: auto;">
+        <div
+            style="width: 68px; height: 68px; border-radius: 50%; overflow: hidden; flex-shrink: 0; position: relative; background: black;">
+            <iframe src="https://giphy.com/embed/UpzSszqw1BjD87KoPt"
+                style="position: absolute; top: -5%; left: -5%; width: 140%; height: 140%; pointer-events: none;"
+                frameBorder="0"></iframe>
+        </div>
+        <h2 style="margin: 0; text-align: center; line-height: 1.1;">FRIDAY NIGHT TRIVIA</h2>
+    </div>
+    <div id="status">Connecting to server...</div>
+
+    <!-- Player lobby (name & avatar selection) -->
+    <div id="login-screen" class="card" style="position: relative;">
+        <input type="text" id="nickname" placeholder="Enter your name"
+            style="width: 75%; max-width: 220px; margin-top: 15px; margin-left: auto; margin-right: auto; display: block;">
+        <p style="color: white; font-weight: bold; margin-bottom: 10px;">Choose Avatar:</p>
+        <div class="avatar-grid" id="avatar-container">
+            <div class="avatar-btn selected" onclick="selectAvatar(this, '😎')">😎</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '💀')">💀</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '👽')">👽</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🤌🏼')">🤌🏼</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🤡')">🤡</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '👻')">👻</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '😼')">😼</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🧟')">🧟</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🐰')">🐰</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🙉')">🙉</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🦄')">🦄</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🐍')">🐍</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🦧')">🦧</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🌝')">🌝</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🌚')">🌚</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🗿')">🗿</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '🥸')">🥸</div>
+            <div class="avatar-btn" onclick="selectAvatar(this, '😈')">😈</div>
+        </div>
+        <button class="join-btn" onclick="joinGame()">Join Game</button>
+    </div>
+
+    <!-- In game screen (question and buttons) -->
+    <div id="game-screen" style="display: none; width: 100%; max-width: 500px; margin: 0 auto;">
+        <div id="timer-container"
+            style="display: none; align-items: center; justify-content: center; gap: 20px; background-color: rgba(0,0,0,0.4); color: white; padding: 15px 30px; border-radius: 50px; font-size: 1.5em; font-weight: bold; margin-bottom: 20px; width: fit-content; margin-left: auto; margin-right: auto;">
+            <span id="player-q-counter" style="color: #00ffcc; font-size: 0.8em; text-transform: uppercase;"></span>
+            <span>⏳ Time left: <span id="player-timer">--</span>s</span>
+        </div>
+        <h3 id="question-text" style="color: #ffcc00; font-size: 1.8em; margin-bottom: 20px;">Waiting for host to
+            start...</h3>
+
+        <div class="button-grid" id="answer-buttons" style="display: none;">
+            <button class="answer-btn" id="btn-0" onclick="sendAnswer(0)"></button>
+            <button class="answer-btn" id="btn-1" onclick="sendAnswer(1)"></button>
+            <button class="answer-btn" id="btn-2" onclick="sendAnswer(2)"></button>
+            <button class="answer-btn" id="btn-3" onclick="sendAnswer(3)"></button>
+        </div>
+        <h3 id="waiting-text" style="display: none; color: white; margin-top: 20px;">Waiting for timer... ⏳</h3>
+    </div>
+
+    <script>
+        // Network connection and linking to local host
+        let wsHost = window.location.host;
+        if (!wsHost || window.location.port === "5500") { wsHost = "localhost:8000"; }
+        let wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+
+        let ws;
+        let pingInterval;
+        let currentAnswers = [];       // Holds 4 answers for the current question
+        let myLastChoiceIndex = -1;    // Remember which answer button player click
+        let selectedAvatar = "😎";       // Default avatar select
+        let isReconnecting = false;    // check if player is reconnecting from crash
+        let hasJoined = false;         // check if player has explicitly joined the game
+
+        // Session recovery
+        // When page loads, check if the page are playing recently and ongoing
+        window.onload = function () {
+            const savedName = localStorage.getItem("trivia_user");
+            const savedAvatar = localStorage.getItem("trivia_avatar");
+
+            // If they have a saved name, fill it in automatically
+            if (savedName) {
+                document.getElementById("nickname").value = savedName;
+                // Highlight their saved avatar
+                if (savedAvatar) {
+                    selectedAvatar = savedAvatar;
+                    const buttons = document.querySelectorAll(".avatar-btn");
+                    buttons.forEach(btn => {
+                        btn.classList.remove("selected");
+                        if (btn.innerText === savedAvatar) btn.classList.add("selected");
+                    });
+                }
+            }
+            // Start connecting to server
+            initWebSocket();
+        };
+
+        // function to select user avatar
+        function selectAvatar(element, emoji) {
+            selectedAvatar = emoji;
+            const buttons = document.querySelectorAll(".avatar-btn");
+            buttons.forEach(btn => btn.classList.remove("selected"));
+            element.classList.add("selected");
+        }
+
+        // function to stay player connected (if player reload or change tab)
+
+        function initWebSocket() {
+            // establish connection to the server
+            ws = new WebSocket(wsProtocol + wsHost + "/ws/player");
+
+            // when the connection open
+            ws.onopen = function () {
+                document.getElementById("status").innerText = "Connected 🟢";
+                document.getElementById("status").style.color = "#00ffcc";
+
+                // if player is disconnected and reconnected back, join back to game
+                if (isReconnecting) {
+                    if (hasJoined) {
+                        joinGame();
+                    }
+                    isReconnecting = false;
+                }
+
+                // send packet every 3 second to measure ping
+                pingInterval = setInterval(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ action: "ping", start: Date.now() }));
+                    }
+                }, 3000);
+            };
+
+            // function for connection drop (page reloading or bad internet)
+            ws.onclose = function () {
+                clearInterval(pingInterval);
+                document.getElementById("status").innerText = "Connection Drop ⚠️ Reconnecting...";
+                document.getElementById("status").style.color = "#ff3b30";
+                isReconnecting = true;
+
+                // try to connect every 2 second until reconnected
+                setTimeout(initWebSocket, 2000);
+            };
+
+            // If connection problem, fix it when connection completely drops (onclose)
+            ws.onerror = (error) => {
+                console.error("Connection problem:", error);
+            };
+
+            // Listen to server message (game manager)
+
+            ws.onmessage = function (event) {
+                const message = JSON.parse(event.data);
+
+                // system message (calculate ping and see if player is connected)
+
+                if (message.type === "pong") {
+                    // Ping return back. Calculate how many milliseconds (ms) it takes
+                    const sentTime = parseInt(message.start, 10);
+                    if (!isNaN(sentTime)) {
+                        document.getElementById("player-ping").innerText = (Date.now() - sentTime);
+                    }
+                    return;
+                }
+                else if (message.type === "heartbeat") { return; } // Server keep player awake
+                else if (message.type === "join_ack") { return; }  // server confirm player join
+
+                // Game start message
+                // New question, transfer UI back to the gameplay screen.
+                if (message.type === "new_question") {
+                    document.getElementById("exit-btn").style.display = "block";
+                    document.body.style.background = "linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%)";
+                    document.getElementById("status").innerText = "Question Time! ⏱️";
+                    document.getElementById("timer-container").style.display = "flex";
+
+                    // update new question
+                    document.getElementById("player-q-counter").innerText = `Q${message.question_number}/${message.total_questions}`;
+                    document.getElementById("question-text").innerHTML = message.question;
+                    document.getElementById("waiting-text").style.display = "none";
+
+                    // hide login screen if player reconnected during question (player screen become blank until question timer end)
+                    document.getElementById("login-screen").style.display = "none";
+                    document.getElementById("game-screen").style.display = "block";
+
+                    // show 4 answer button
+                    document.getElementById("answer-buttons").style.display = "grid";
+                    currentAnswers = message.answers;
+                    myLastChoiceIndex = -1; //reset player choice
+
+                    // put answer text to buttons and reset colors
+                    for (let i = 0; i < 4; i++) {
+                        const btn = document.getElementById("btn-" + i);
+                        btn.innerText = currentAnswers[i];
+                        btn.style.opacity = "1";
+                        btn.disabled = false;
+                        btn.style.transform = "none";
+                        btn.style.backgroundColor = "";
+                        btn.style.color = "";
+                        btn.style.border = "";
+                    }
+                }
+                else if (message.type === "timer") {
+                    // timer tick
+                    document.getElementById("player-timer").innerText = message.time;
+
+                    // play ticking sound when 5 second reach
+                    if (message.time <= 5 && message.time > 0) {
+                        let tickSound = document.getElementById("sfx-tick");
+                        tickSound.currentTime = 0;
+                        tickSound.play().catch(e => { });
+                    }
+                }
+                else if (message.type === "ack") {
+                    // server acknowledged player's answer
+                }
+
+                // Results and leaderboard
+                else if (message.type === "result") {
+                    // hide timer
+                    document.getElementById("timer-container").style.display = "none";
+                    document.getElementById("waiting-text").style.display = "none";
+
+                    // 4 buttons, green for correct and red for their wrong choice, other two option are dimmed
+                    for (let i = 0; i < 4; i++) {
+                        const btn = document.getElementById("btn-" + i);
+                        if (currentAnswers[i] === message.correct_answer) {
+                            btn.style.backgroundColor = "#34c759"; // Green
+                            btn.style.color = "white";
+                            btn.style.opacity = "1";
+                            btn.style.transform = "scale(1.02)";
+                            btn.style.border = "3px solid white";
+                        } else if (i === myLastChoiceIndex) {
+                            btn.style.backgroundColor = "#ff3b30"; // Red
+                            btn.style.color = "white";
+                            btn.style.opacity = "1";
+                        } else {
+                            btn.style.opacity = "0.3"; // Dim
+                            btn.style.transform = "none";
+                            btn.style.border = "";
+                        }
+                    }
+
+                    // result banner
+                    let bannerColor = "", bannerTitle = "", bannerGif = "", scoreChange = "";
+
+                    if (!message.answered) {
+                        // player didnt pick any answer until timer end
+                        bannerColor = "rgba(42, 42, 64, 0.9)";
+                        bannerTitle = "Time's Up! ⏰";
+                        bannerGif = "https://media.giphy.com/media/pY8jLmZw0ElqvVeRH4/giphy.gif";
+                        scoreChange = "+0";
+                        let sfx = document.getElementById("sfx-wrong");
+                        sfx.currentTime = 0;
+                        sfx.play().catch(e => { });
+                    }
+                    else if (message.correct) {
+                        // player answer correctly, display a cat knod gif from giphy
+                        bannerColor = "#34c759";
+                        bannerTitle = "CORRECT! ✅";
+                        bannerGif = "https://media.giphy.com/media/GuDU8r5CnUoYtbS2CR/giphy.gif";
+                        scoreChange = "+" + message.points_earned;
+                        let sfx = document.getElementById("sfx-correct");
+                        sfx.currentTime = 0;
+                        sfx.play().catch(e => { });
+                    } else {
+                        // player answer wrongly, show a cat laughing gif
+                        bannerColor = "#ff3b30";
+                        bannerTitle = "WRONG! <span style='color: black; font-weight: 900;'>✖</span>";
+                        bannerGif = "https://media.giphy.com/media/Iy1PWGPb7Hz3AI4e3T/giphy.gif";
+                        scoreChange = "+0";
+                        let sfx = document.getElementById("sfx-wrong");
+                        sfx.currentTime = 0;
+                        sfx.play().catch(e => { });
+                    }
+
+                    // show result to player screen
+                    let resultHtml = `<div style="background: ${bannerColor}; color: white; padding: 15px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 3px solid white; text-align: center; box-sizing: border-box; overflow: hidden; width: 100%;">
+                                        <h2 style="margin: 0 0 15px 0; font-size: 1.8em; color: white; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${bannerTitle}</h2>
+                                        <div style="display: flex; align-items: center; justify-content: flex-start; gap: 15px; text-align: left; width: 100%;">
+                                            <img src="${bannerGif}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.3); flex-shrink: 0;">
+                                            <div style="display: flex; flex-direction: column; justify-content: center; gap: 5px; min-width: 0; flex: 1;">
+                                                <p style="font-size: 1.0em; margin: 0; line-height: 1.2; color: rgba(255,255,255,0.9); word-wrap: break-word; overflow-wrap: break-word; hyphens: auto;">Correct Answer:<br><strong style="font-size: 1.1em; color: white;">${message.correct_answer}</strong></p>
+                                                <p style="font-size: 1.0em; margin: 0; color: rgba(255,255,255,0.9);">Score: <strong style="color: white; font-size: 1.1em;">${message.score} <span style="color: #ffff00;">(${scoreChange})</span></strong></p>
+                                            </div>
+                                        </div>
+                                      </div>`;
+                    document.getElementById("question-text").innerHTML = resultHtml;
+                }
+                else if (message.type === "leaderboard") {
+                    // current leaderboard between each question
+                    document.getElementById("answer-buttons").style.display = "none";
+                    document.getElementById("timer-container").style.display = "none";
+                    document.getElementById("waiting-text").style.display = "none";
+                    document.getElementById("status").innerText = "Rankings 🏆";
+
+                    let myName = document.getElementById("nickname").value;
+                    let lbHtml = "<div style='background: rgba(42, 42, 64, 0.9); padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 2px solid #555;'><h3 style='color: #ffcc00; font-size: 1.8em; margin-top: 0;'>🏆 Leaderboard</h3>";
+
+                    // List everyone, but highlight the current player's row
+                    for (let i = 0; i < message.scores.length; i++) {
+                        let isMe = (message.scores[i][0] === myName);
+                        let rowStyle = isMe ? "border: 2px solid #00ffcc; padding: 8px; border-radius: 8px; background: rgba(0, 255, 204, 0.2);" : "padding: 8px;";
+                        lbHtml += "<p style='font-size: 1.1em; font-weight: bold; margin: 8px 0; " + rowStyle + "'>" + (i + 1) + ") " + message.scores[i][2] + " " + message.scores[i][0] + " - " + message.scores[i][1] + " pts</p>";
+                    }
+                    lbHtml += "</div><br><p style='color: #00ffcc; font-size: 1.2em; font-weight: bold;'>Get ready for the next question! ⏱️</p>";
+
+                    document.getElementById("question-text").innerHTML = lbHtml;
+                    document.body.style.background = "linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%)";
+                }
+                else if (message.type === "game_over") {
+                    // game ends, show final game over and leaderboard
+                    document.getElementById("answer-buttons").style.display = "none";
+                    document.getElementById("timer-container").style.display = "none";
+                    document.getElementById("waiting-text").style.display = "none";
+                    document.getElementById("status").innerText = "Game Over! 🏁";
+
+                    let scores = message.scores;
+                    let lbHtml = "<div style='text-align: center; margin-top: -50px;'><h2 style='color: #ffcc00; font-size: 1.8em; text-shadow: 0 4px 10px rgba(255,204,0,0.4); margin-bottom: 50px; position: relative; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 10px;'><span style='font-size: 1.2em;'>🏆</span> Leaderboard</h2><div style='display: flex; justify-content: center; align-items: flex-end; gap: 10px; height: 320px; margin-bottom: 20px;'>";
+
+                    // function to show leaderboard podium
+                    function getPodiumHtml(rank, player, height, color, gifUrl) {
+                        if (!player) return "<div style='width: 100px;'></div>";
+                        let avatar = player[2] || "👤";
+                        return `
+                        <div style='display: flex; flex-direction: column; align-items: center; width: 110px;'>
+                            <img src='${gifUrl}' style='width: 80px; height: 80px; border-radius: 50%; margin-bottom: 8px; object-fit: cover; background: white; border: 3px solid ${color};'>
+                            <div style='font-size: 1.1em; color: #ffcc00; margin-bottom: 5px; font-weight: bold;'>${player[1]} pts</div>
+                            <div style='width: 100%; background: ${color}; height: ${height}px; border-radius: 15px 15px 0 0; display: flex; flex-direction: column; align-items: center; padding-top: 10px; box-shadow: 0 0 15px ${color}80; overflow: hidden;'>
+                                <span style='font-size: 1.8em; font-weight: 900; color: rgba(0,0,0,0.4); line-height: 1; margin-bottom: 8px;'>${rank}</span>
+                                <div style='font-weight: bold; font-size: 1em; color: rgba(0,0,0,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 95%; padding: 0 2px;'>${avatar} ${player[0]}</div>
+                            </div>
+                        </div>`;
+                    }
+
+                    // each podium has one gif on top
+                    lbHtml += getPodiumHtml("2", scores[1], 120, "#C0C0C0", "https://media.giphy.com/media/9Z7SJLN4UYgGcVZQaJ/giphy.gif");
+                    lbHtml += getPodiumHtml("1", scores[0], 170, "#FFD700", "https://media.giphy.com/media/MMquV2oInK40V86Q7g/giphy.gif");
+                    lbHtml += getPodiumHtml("3", scores[2], 90, "#CD7F32", "https://media.giphy.com/media/LBb735fuQwRKAVzN23/giphy.gif");
+                    lbHtml += "</div></div>";
+
+                    let myName = document.getElementById("nickname").value;
+                    lbHtml += "<div style='background: rgba(42, 42, 64, 0.9); padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 2px solid #555; max-width: 400px; margin: 0 auto 40px auto; text-align: left;'>";
+                    for (let i = 0; i < scores.length; i++) {
+                        let isMe = (scores[i][0] === myName);
+                        let rowStyle = isMe ? "border: 2px solid #00ffcc; padding: 8px; border-radius: 8px; background: rgba(0, 255, 204, 0.2);" : "padding: 8px;";
+                        let playerAvatar = scores[i][2] || "👤";
+                        lbHtml += "<div style='display: flex; justify-content: space-between; align-items: center; font-size: 1.1em; font-weight: bold; margin: 8px 0; " + rowStyle + "'>" +
+                            "<span>" + (i + 1) + ") " + playerAvatar + " " + scores[i][0] + "</span>" +
+                            "<span style='color: #ffcc00;'>" + scores[i][1] + " pts</span>" +
+                            "</div>";
+                    }
+                    lbHtml += "</div>";
+
+                    document.getElementById("question-text").innerHTML = lbHtml;
+                    document.body.style.background = "linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%)";
+                }
+                else if (message.type === "game_aborted") {
+                    // if host close their browser, the player page are reload once, if during game, the game is aborted
+                    window.location.reload();
+                }
+            };
+        }
+
+        // player joining and answer function
+        // function is called when player click join game
+        function joinGame() {
+            const name = document.getElementById("nickname").value.trim();
+            if (name === "") return; // player must have a name
+
+            hasJoined = true; // Mark as joined
+
+            // Unlock audio for mobile browsers
+            ["sfx-correct", "sfx-wrong", "sfx-tick"].forEach(id => {
+                let audio = document.getElementById(id);
+                audio.play().catch(() => { });
+                audio.pause();
+                audio.currentTime = 0;
+            });
+
+            // save player cache for stateful session recovery if player reload game or crash
+            localStorage.setItem("trivia_user", name);
+            localStorage.setItem("trivia_avatar", selectedAvatar);
+
+            // send join info to server
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: "join", name: name, avatar: selectedAvatar }));
+            }
+
+            // Hide login screen, show the lobby waiting screen
+            document.getElementById("login-screen").style.display = "none";
+            document.getElementById("game-screen").style.display = "block";
+            document.getElementById("status").innerText = "You are in the lobby! 👋";
+        }
+
+        // called when player taps one of the 4 answer choices
+        function sendAnswer(buttonIndex) {
+            //  If player click answer already
+            if (document.getElementById("btn-0").disabled) return;
+
+            const chosenAnswerText = currentAnswers[buttonIndex];
+            myLastChoiceIndex = buttonIndex; // save which button they click
+
+            // send player choice to server
+            ws.send(JSON.stringify({ action: "answer", choice: chosenAnswerText }));
+
+            // make the button disabled so player cannot pick two answer
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById("btn-" + i);
+                btn.disabled = true;
+                if (i !== buttonIndex) {
+                    btn.style.opacity = "0.3"; // make unpicked answer darker and dim
+                } else {
+                    btn.style.transform = "scale(0.95)"; // player answer is highlighted
+                }
+            }
+
+            document.getElementById("status").innerText = "Locked in! 🔒";
+            document.getElementById("waiting-text").style.display = "block";
+        }
+    </script>
+</body>
+
+</html>

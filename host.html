@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Trivia Host</title>
+
+    <!-- Imports the library for qr code drawing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        /* Import Outfit font from Google Font for style (Weights: Regular, Bold, Black) */
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1e1e2f 0%, #2a2a40 100%);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 50px 20px;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #00ffcc;
+            font-size: 3.5em;
+            font-weight: 900;
+            text-shadow: 0px 4px 10px rgba(0, 255, 204, 0.3);
+            margin-bottom: 5px;
+        }
+
+        #status {
+            color: #ff3366;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+
+        #ping-badge {
+            position: fixed;
+            top: 15px;
+            left: 70px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #00ffcc;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            z-index: 1000;
+        }
+
+        .card {
+            background-color: rgba(42, 42, 64, 0.8);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            margin: 20px auto;
+            width: 70%;
+        }
+
+        input,
+        select {
+            padding: 10px;
+            font-size: 1em;
+            border-radius: 8px;
+            border: 1px solid #555;
+            background: #fff;
+            color: #333;
+            font-family: 'Outfit', sans-serif;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 1.5em;
+            background: linear-gradient(90deg, #00ffcc, #00ccff);
+            color: #111;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 900;
+            font-family: 'Outfit', sans-serif;
+            box-shadow: 0 5px 15px rgba(0, 255, 204, 0.4);
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        .answer-box {
+            padding: 30px;
+            font-size: 1.8em;
+            border-radius: 15px;
+            font-weight: 900;
+            color: white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .ans-a {
+            background-color: #ff3b30;
+        }
+
+        .ans-b {
+            background-color: #007aff;
+        }
+
+        .ans-c {
+            background-color: #ffcc00;
+            color: black;
+        }
+
+        .ans-d {
+            background-color: #34c759;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- system ui for ping, title and network status  -->
+    <div id="ping-badge">📶 Ping: <span id="host-ping">--</span>ms</div>
+
+    <button id="exit-btn" onclick="window.location.reload()"
+        style="display: none; position: fixed; top: 15px; left: 15px; background: rgba(255,59,48,0.8); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-weight: bold; font-size: 1.2em; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; line-height: 40px; text-align: center; padding: 0;"
+        title="Return to Main Menu">✖</button>
+
+    <button
+        onclick="let bgm = document.getElementById('sfx-bgm'); bgm.volume = 0.15; let slash = this.querySelector('.slash'); if(bgm.paused){bgm.play().then(()=>{slash.style.display='none';}).catch(e=>{console.log(e);});}else{bgm.pause(); slash.style.display='block';}"
+        style="position: fixed; top: 15px; right: 15px; background: #ff69b4; color: white; border: none; border-radius: 50%; width: 45px; height: 45px; padding: 0; box-shadow: none !important; transform: none !important; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.5em; z-index: 2000; overflow: hidden;"
+        title="Toggle Music">🎵<div class="slash"
+            style="position: absolute; width: 4px; height: 100%; background: #ff3b30; transform: rotate(45deg); pointer-events: none; border-radius: 2px;">
+        </div></button>
+
+    <div
+        style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 5px; max-width: 90vw; margin-left: auto; margin-right: auto;">
+        <div
+            style="width: 90px; height: 90px; border-radius: 50%; overflow: hidden; flex-shrink: 0; position: relative; background: black;">
+            <iframe src="https://giphy.com/embed/UpzSszqw1BjD87KoPt"
+                style="position: absolute; top: -5%; left: -5%; width: 110%; height: 110%; pointer-events: none;"
+                frameBorder="0"></iframe>
+        </div>
+        <h1 style="margin: 0; text-align: left; line-height: 1.1;">FRIDAY NIGHT TRIVIA</h1>
+    </div>
+    <p>Network Status: <span id="status">Disconnected🔴</span></p>
+
+    <!-- setup and configuration for game settings and button to start game -->
+    <div id="setup-area" class="card"
+        style="display: flex; justify-content: center; gap: 50px; align-items: center; text-align: left; width: fit-content; max-width: 90%; padding: 40px 60px; position: relative; margin: 20px auto;">
+        <div style="min-width: 250px;">
+            <h3 style="color: #ffcc00; font-size: 1.5em; margin-top: 0;">⚙️ Game Settings</h3>
+            <label style="font-weight: bold;">Category:</label><br>
+            <select id="config-category" style="margin-bottom: 15px; width: 100%; box-sizing: border-box;">
+                <option value="any">Any Category</option>
+                <option value="9">General Knowledge</option>
+                <option value="27">Animals</option>
+                <option value="21">Sports</option>
+                <option value="15">Entertainment: Video Games</option>
+                <option value="11">Entertainment: Film</option>
+                <option value="12">Entertainment: Music</option>
+                <option value="22">Geography</option>
+                <option value="25">Art</option>
+                <option value="28">Vehicles</option>
+                <option value="19">Science: Mathematics</option>
+                <option value="18">Science: Computers</option>
+            </select><br>
+
+            <div style="display: flex; gap: 10px;">
+                <div>
+                    <label style="font-weight: bold;">Questions:</label><br>
+                    <input type="number" id="config-amount" value="5" min="1" max="50" style="width: 80px;">
+                </div>
+                <div>
+                    <label style="font-weight: bold;">Timer (s):</label><br>
+                    <input type="number" id="config-timer" value="10" min="1" max="60" style="width: 80px;">
+                </div>
+            </div>
+
+            <hr style="border: 1px solid rgba(255,255,255,0.2); margin: 20px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <label style="font-weight: bold; color: #ffcc00;">Custom Questions:</label>
+                <div id="custom-status-badge"
+                    style="background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 5px; font-size: 0.8em; color: #aaa;">
+                    None</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label style="font-size: 0.9em; font-weight: bold;">Timer (s)</label><br>
+                    <input type="number" id="custom-timer" value="10" min="1" max="60"
+                        style="width: 100%; box-sizing: border-box;">
+                </div>
+                <div style="flex: 2; display: flex; align-items: flex-end; gap: 5px;">
+                    <button id="btn-custom-create" onclick="openCustomCreator()"
+                        style="width: 100%; background: #a64dff; color: white; border: none; padding: 10px; border-radius: 10px; font-weight: bold; font-size: 1.1em; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 10px rgba(166,77,255,0.4);"
+                        onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">Create
+                        🛠️</button>
+                    <button id="btn-custom-edit" onclick="openCustomCreator()"
+                        style="display: none; flex: 1; background: #ffcc00; color: black; border: none; padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer;">Edit</button>
+                    <button id="btn-custom-clear" onclick="clearCustomGame()"
+                        style="display: none; background: #ff3b30; color: white; border: none; padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer;">✖</button>
+                </div>
+            </div>
+        </div>
+
+        <div
+            style="text-align: center; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative;">
+            <button onclick="zoomQR()"
+                style="position: absolute; top: 10px; right: 10px; background: #f0f0f0; color: #333; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 1.5em; font-weight: bold; box-shadow: none; transition: background 0.2s;"
+                onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='#f0f0f0'">+</button>
+            <h3 style="color: black; margin-top: 0; font-weight: 900;">Scan to Join!</h3>
+            <div id="qrcode"
+                style="margin: 0 auto; padding: 10px; background: white; border-radius: 10px; display: inline-block;">
+            </div>
+
+            <div
+                style="margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; background: #f0f0f0; padding: 5px 10px; border-radius: 8px;">
+                <span id="join-link-display"
+                    style="color: #333; font-weight: bold; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;"></span>
+                <button onclick="copyLink()"
+                    style="background: #007aff; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 0.8em; font-weight: bold; box-shadow: none;">Copy</button>
+            </div>
+            <input type="hidden" id="join-link-full">
+        </div>
+    </div>
+
+    <button id="start-btn" onclick="startGame()">START GAME 🚀</button>
+
+    <!-- creating custom questions   -->
+    <div id="custom-creator-area" class="card"
+        style="display: none; width: 90%; max-width: 800px; margin: 20px auto; padding: 40px; text-align: left; position: relative;">
+        <button onclick="closeCustomCreator()"
+            style="position: absolute; top: 15px; left: 15px; background: rgba(255,59,48,0.8); color: white; border: none; border-radius: 5px; padding: 8px 15px; font-size: 0.9em; font-weight: bold; cursor: pointer; box-shadow: none;">⬅
+            Back</button>
+        <h2 style="color: #a64dff; text-align: center; margin-top: 0; font-size: 2.5em; margin-bottom: 30px;">🛠️ Custom
+            Game Creator</h2>
+        <div id="custom-questions-list"
+            style="display: flex; flex-direction: column; gap: 20px; max-height: 50vh; overflow-y: auto; padding-right: 10px;">
+        </div>
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+            <button onclick="addCustomQuestion()"
+                style="background: #34c759; color: white; border: none; padding: 12px 25px; border-radius: 10px; font-weight: bold; font-size: 1.1em; cursor: pointer; box-shadow: none;">➕
+                Add Question</button>
+            <button onclick="saveCustomGame()"
+                style="background: #00ffcc; color: black; border: none; padding: 12px 30px; border-radius: 10px; font-weight: 900; font-size: 1.2em; cursor: pointer;">Done
+                ✅</button>
+        </div>
+    </div>
+
+    <!-- zoom qr code   -->
+    <div id="qr-modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; flex-direction: column;">
+        <div style="background: white; padding: 30px; border-radius: 20px; text-align: center;">
+            <h2 style="color: black; margin-top: 0; font-size: 2.5em;">Scan to Join</h2>
+            <div id="qrcode-large" style="margin: 20px auto; padding: 20px;"></div>
+            <button onclick="closeQR()"
+                style="margin-top: 20px; background: #ff3366; color: white; border: none; padding: 15px 30px; border-radius: 50px; font-weight: bold; font-size: 1.2em; cursor: pointer;">Close</button>
+        </div>
+    </div>
+
+    <!-- in game screen for question board   -->
+    <div id="question-board" class="card" style="display: none;">
+        <div id="game-status"
+            style="display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background-color: rgba(0,0,0,0.4); border-radius: 15px; margin-bottom: 30px;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <span id="host-q-counter"
+                    style="color: #00ffcc; font-size: 1.2em; font-weight: bold; background: rgba(0,255,204,0.2); padding: 5px 15px; border-radius: 10px;">Q
+                    --/--</span>
+                <span style="font-size: 2em; font-weight: bold;">⏳ <span id="timer-display">--</span></span>
+            </div>
+            <span style="font-size: 1.5em; color: #00ffcc; line-height: 1.8em; font-weight: bold;">Players Answered:
+                <span id="answered-count">0</span> / <span id="total-count">0</span></span>
+        </div>
+        <h2 id="question-text" style="color: #ffcc00; font-size: 3em; margin: 40px 0;">Question goes here</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: center; font-size: 1.2em;">
+            <div class="answer-box ans-a"><span id="ans-A"></span></div>
+            <div class="answer-box ans-b"><span id="ans-B"></span></div>
+            <div class="answer-box ans-c"><span id="ans-C"></span></div>
+            <div class="answer-box ans-d"><span id="ans-D"></span></div>
+        </div>
+    </div>
+
+    <audio id="sfx-bgm" src="sounds/host.mp3" loop preload="auto"></audio>
+
+    <!-- player lobby and leaderboard -->
+    <div id="lobby-area">
+        <h2 id="lobby-title">Players in Lobby:</h2>
+        <ul id="player-list" style="list-style: none; font-size: 1.5em; padding: 0;"></ul>
+    </div>
+
+    <script>
+        // network connecting to connect and finding python server
+        let wsHost = window.location.host;
+        if (!wsHost || window.location.port === "5500") { wsHost = "localhost:8000"; }
+        const wsProtocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+        const ws = new WebSocket(wsProtocol + wsHost + "/ws/host");
+
+        let pingInterval;
+
+        // when connection is connected successfully
+        ws.onopen = function (event) {
+            document.getElementById("status").innerText = "CONNECTED🟢";
+            document.getElementById("status").style.color = "#00ffcc";
+
+            // send ping every 3 second to measure latency ping
+            pingInterval = setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ action: "ping", start: Date.now() }));
+                }
+            }, 3000);
+        };
+
+        // if connection drops or python server are off
+        ws.onclose = function () {
+            document.getElementById("status").innerText = "Disconnected🔴";
+            clearInterval(pingInterval);
+        };
+
+        // game launch logic when game starts
+        let savedCustomQuestions = null; // hold custom question if made by host
+
+        // start game when start game button is clicked
+        function startGame() {
+            // check if host created a custom game
+            if (savedCustomQuestions !== null && savedCustomQuestions.length > 0) {
+                const timer = parseInt(document.getElementById("custom-timer").value) || 15;
+
+                // if created, use custom question to start game created by host
+                ws.send(JSON.stringify({
+                    action: "START_CUSTOM_GAME",
+                    config: { timer: timer, questions: savedCustomQuestions }
+                }));
+                document.getElementById("start-btn").innerText = "Loading Custom Game...";
+            } else {
+                // If no custom game created, use premade sample question for open trivia database
+                const amount = parseInt(document.getElementById("config-amount").value);
+                const category = document.getElementById("config-category").value;
+                const timer = parseInt(document.getElementById("config-timer").value);
+
+                // tell server fetch question from internet to start game
+                ws.send(JSON.stringify({
+                    action: "START_GAME",
+                    config: { amount: amount, category: category, timer: timer }
+                }));
+                document.getElementById("start-btn").innerText = "Loading Questions...";
+            }
+        }
+
+        // host react to game and listen to message 
+        let qrCodeGenerated = false;
+
+        // if python server connect to us, this function handle it
+        ws.onmessage = function (event) {
+            const message = JSON.parse(event.data);
+
+            // system messages (calculate ping and keep connection on)
+
+            if (message.type === "pong") {
+                // calculate exact ms when ping reply
+                const sentTime = parseInt(message.start, 10);
+                if (!isNaN(sentTime)) {
+                    const rtt = Date.now() - sentTime;
+                    document.getElementById("host-ping").innerText = rtt;
+                }
+                return;
+            }
+            else if (message.type === "heartbeat") {
+                return; // ignore heartbeat, keep connection alive only
+            }
+
+            // lobby setup
+
+            if (message.type === "init" && !qrCodeGenerated) {
+                // server give a join link, generate qr to join
+                document.getElementById("join-link-full").value = message.join_url;
+                let displayUrl = message.join_url.replace(/^https?:\/\//, '');
+                document.getElementById("join-link-display").innerText = displayUrl;
+
+                try {
+                    new QRCode(document.getElementById("qrcode"), { text: message.join_url, width: 150, height: 150 });
+                    new QRCode(document.getElementById("qrcode-large"), { text: message.join_url, width: 400, height: 400 });
+                } catch (e) {
+                    document.getElementById("qrcode").innerText = "⚠️ QR Blocked";
+                    document.getElementById("qrcode").style.color = "black";
+                }
+                qrCodeGenerated = true;
+            }
+            else if (message.type === "join") {
+                // when a player join, add their name and avatar to the lobby list
+                const li = document.createElement("li");
+                let avatar = message.avatar || "👤";
+                li.innerText = avatar + " " + message.name;
+                document.getElementById("player-list").appendChild(li);
+            }
+
+            // active gamem message
+
+            else if (message.type === "new_question") {
+                // hide lobby and show question screen when new question start
+                document.getElementById("exit-btn").style.display = "block";
+                document.getElementById("lobby-area").style.display = "none";
+                document.getElementById("setup-area").style.display = "none";
+                document.getElementById("start-btn").style.display = "none";
+                document.getElementById("question-board").style.display = "block";
+
+                document.getElementById("host-q-counter").innerText = `Q${message.question_number}/${message.total_questions}`;
+                document.getElementById("question-text").innerText = message.question;
+
+                // reset player answered counter for new question
+                document.getElementById("answered-count").innerText = "0";
+                document.getElementById("total-count").innerText = document.querySelectorAll('#player-list li').length;
+
+                // put the four answers on the screen
+                document.getElementById("ans-A").innerText = message.answers[0];
+                document.getElementById("ans-B").innerText = message.answers[1];
+                document.getElementById("ans-C").innerText = message.answers[2];
+                document.getElementById("ans-D").innerText = message.answers[3];
+            }
+            else if (message.type === "player_answered") {
+                // update the counter when players chosen their answer
+                document.getElementById("answered-count").innerText = message.answered_count;
+                document.getElementById("total-count").innerText = message.total_count;
+            }
+            else if (message.type === "timer") {
+                // clock timer ticking down
+                document.getElementById("timer-display").innerText = message.time;
+            }
+            else if (message.type === "result_reveal") {
+                // when timer ends, reveal the answer
+                document.getElementById("question-board").style.display = "none";
+                document.getElementById("lobby-area").style.display = "block";
+                document.getElementById("lobby-title").style.display = "none";
+
+                let html = `<div style="background: rgba(52, 199, 89, 0.2); border: 2px solid #34c759; padding: 30px; border-radius: 15px; margin: 20px auto; max-width: 600px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                            <h3 style="color: #34c759; margin: 0; font-size: 2em;">✅ Correct Answer: <br><br><span style="color: white; font-size: 1.5em;">${message.correct_answer}</span></h3>
+                           </div>`;
+                document.getElementById("player-list").innerHTML = html;
+            }
+            else if (message.type === "leaderboard") {
+                // show leaderboard before new question begins
+                document.getElementById("question-board").style.display = "none";
+                document.getElementById("lobby-area").style.display = "block";
+
+                let lbHtml = "<h3 style='color: #ffcc00; font-size: 2.5em; margin: 20px 0 10px 0; display: flex; align-items: center; justify-content: center; gap: 10px;'><span style='font-size: 1.2em;'>🏆</span> Leaderboard</h3><ul style='list-style: none; padding: 0; font-size: 1.3em; font-weight: bold;'>";
+                for (let i = 0; i < message.scores.length; i++) {
+                    let playerAvatar = message.scores[i][2] || "👤";
+                    lbHtml += "<li style='margin: 10px 0; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px;'>" + (i + 1) + ") " + playerAvatar + " " + message.scores[i][0] + " - " + message.scores[i][1] + " pts</li>";
+                }
+                lbHtml += "</ul><br><p style='color: gray; font-size: 1.2em;'>Next question starting soon...</p>";
+                document.getElementById("player-list").innerHTML = lbHtml;
+            }
+            else if (message.type === "game_over") {
+                // when game over, show the leaderboard winner
+                document.getElementById("question-board").style.display = "none";
+                document.getElementById("lobby-area").style.display = "block";
+                document.getElementById("lobby-title").style.display = "none";
+
+                let scores = message.scores;
+                let lbHtml = "<div style='text-align: center; margin-top: 40px;'><h2 style='color: #ffcc00; font-size: 2.5em; margin-bottom: 40px; position: relative; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 15px;'><span style='font-size: 1.2em;'>🏆</span> Leaderboard</h2><div style='display: flex; justify-content: center; align-items: flex-end; gap: 15px; height: 420px; margin-bottom: 20px;'>";
+
+                // function to draw the leaderboard podium bar
+                function getPodiumHtml(rank, player, height, color, gifUrl) {
+                    if (!player) return "<div style='width: 120px;'></div>";
+                    let avatar = player[2] || "👤";
+                    return `
+                    <div style='display: flex; flex-direction: column; align-items: center; width: 140px;'>
+                        <img src='${gifUrl}' style='width: 110px; height: 110px; border-radius: 50%; margin-bottom: 10px; object-fit: cover; background: white; border: 4px solid ${color};'>
+                        <div style='font-size: 1.3em; font-weight: bold; color: #ffcc00; margin-bottom: 5px;'>${player[1]} pts</div>
+                        <div style='width: 100%; background: ${color}; height: ${height}px; border-radius: 15px 15px 0 0; display: flex; flex-direction: column; align-items: center; padding-top: 15px; box-shadow: 0 0 20px ${color}80; overflow: hidden;'>
+                            <span style='font-size: 2.5em; font-weight: 900; color: rgba(0,0,0,0.4); line-height: 1; margin-bottom: 10px;'>${rank}</span>
+                            <div style='font-weight: bold; font-size: 1.2em; color: rgba(0,0,0,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 95%; padding: 0 5px;'>${avatar} ${player[0]}</div>
+                        </div>
+                    </div>`;
+                }
+
+                lbHtml += getPodiumHtml("2", scores[1], 150, "#C0C0C0", "https://media.giphy.com/media/9Z7SJLN4UYgGcVZQaJ/giphy.gif");
+                lbHtml += getPodiumHtml("1", scores[0], 210, "#FFD700", "https://media.giphy.com/media/MMquV2oInK40V86Q7g/giphy.gif");
+                lbHtml += getPodiumHtml("3", scores[2], 110, "#CD7F32", "https://media.giphy.com/media/LBb735fuQwRKAVzN23/giphy.gif");
+                lbHtml += "</div></div>";
+
+                lbHtml += "<ul style='list-style: none; padding: 0; font-size: 1.3em; font-weight: bold; max-width: 600px; margin: 0 auto 40px auto; text-align: left;'>";
+                for (let i = 0; i < scores.length; i++) {
+                    let playerAvatar = scores[i][2] || "👤";
+                    lbHtml += "<li style='margin: 10px 0; background: rgba(0,0,0,0.3); padding: 15px 20px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center;'>" +
+                              "<span>" + (i + 1) + ") " + playerAvatar + " " + scores[i][0] + "</span>" +
+                              "<span style='color: #ffcc00;'>" + scores[i][1] + " pts</span>" +
+                              "</li>";
+                }
+                lbHtml += "</ul>";
+
+                document.getElementById("player-list").innerHTML = lbHtml;
+
+                // turn the start button into backk to main menu button
+                const btn = document.getElementById("start-btn");
+                btn.style.display = "inline-block";
+                btn.innerText = "Back to Main Menu 🏠";
+                btn.onclick = function () { window.location.reload(); };
+                document.getElementById("lobby-area").appendChild(btn);
+            }
+        };
+
+        // UI functions
+        // copy join link to computer clipboard
+        function copyLink() {
+            const url = document.getElementById("join-link-full").value;
+            navigator.clipboard.writeText(url).then(() => { alert("Link copied!"); }).catch(err => { alert("Failed: " + err); });
+        }
+
+        // open zoom in qr code
+        function zoomQR() { document.getElementById("qr-modal").style.display = "flex"; }
+        // close zoom in qr code
+        function closeQR() { document.getElementById("qr-modal").style.display = "none"; }
+
+        // function to create custom question
+        let customQuestionCount = 0;
+
+        // open the custom menu
+        function openCustomCreator() {
+            document.getElementById("setup-area").style.display = "none";
+            document.getElementById("start-btn").style.display = "none";
+            document.getElementById("custom-creator-area").style.display = "block";
+            if (customQuestionCount === 0) { addCustomQuestion(); }
+        }
+
+        // close custom menu and save all question
+        function closeCustomCreator() {
+            document.getElementById("custom-creator-area").style.display = "none";
+            document.getElementById("setup-area").style.display = "flex";
+            document.getElementById("start-btn").style.display = "inline-block";
+        }
+
+        // function to add new custom question number
+        function addCustomQuestion() {
+            customQuestionCount++;
+            const container = document.getElementById("custom-questions-list");
+            const qDiv = document.createElement("div");
+            qDiv.className = "custom-q-block";
+            qDiv.style.background = "rgba(0,0,0,0.3)";
+            qDiv.style.padding = "20px";
+            qDiv.style.borderRadius = "15px";
+            qDiv.style.position = "relative";
+
+            qDiv.innerHTML = `
+                <button onclick="this.parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: #ff3b30; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-weight: bold; font-size: 0.8em; box-shadow: none;">🗑️ Remove</button>
+                <h4 style="margin-top: 0; color: #ffcc00; font-size: 1.2em;">Question</h4>
+                <input type="text" class="cq-text" placeholder="e.g. What is the capital of France?" style="width: 100%; padding: 10px; border-radius: 8px; border: none; margin-bottom: 15px; box-sizing: border-box;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div><label style="color: #34c759; font-weight: bold;">Correct Answer:</label><input type="text" class="cq-correct" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #34c759; box-sizing: border-box;"></div>
+                    <div><label style="color: #ff3b30; font-weight: bold;">Wrong Answer 1:</label><input type="text" class="cq-wrong-1" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #ff3b30; box-sizing: border-box;"></div>
+                    <div><label style="color: #ff3b30; font-weight: bold;">Wrong Answer 2:</label><input type="text" class="cq-wrong-2" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #ff3b30; box-sizing: border-box;"></div>
+                    <div><label style="color: #ff3b30; font-weight: bold;">Wrong Answer 3:</label><input type="text" class="cq-wrong-3" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #ff3b30; box-sizing: border-box;"></div>
+                </div>`;
+            container.appendChild(qDiv);
+
+            // scroll to new question automatically
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // function to save all custom question and save them
+        function saveCustomGame() {
+            const qBlocks = document.querySelectorAll(".custom-q-block");
+            if (qBlocks.length === 0) { alert("Please add a question!"); return; }
+
+            let questions = [];
+            for (let block of qBlocks) {
+                const qText = block.querySelector('.cq-text').value.trim();
+                const correct = block.querySelector('.cq-correct').value.trim();
+                const w1 = block.querySelector('.cq-wrong-1').value.trim();
+                const w2 = block.querySelector('.cq-wrong-2').value.trim();
+                const w3 = block.querySelector('.cq-wrong-3').value.trim();
+
+                // make sure no blank custom question
+                if (!qText || !correct || !w1 || !w2 || !w3) { alert("Fill in all fields!"); return; }
+
+                // make sure question is set properly
+                questions.push({ question: qText, correct_answer: correct, incorrect_answers: [w1, w2, w3] });
+            }
+
+            // save question to global variable
+            savedCustomQuestions = questions;
+
+            // update UI in main menu to show Ready(1Qs) if one question is set
+            document.getElementById("custom-status-badge").innerText = `Ready (${questions.length} Qs)`;
+            document.getElementById("custom-status-badge").style.background = "rgba(52, 199, 89, 0.2)";
+            document.getElementById("custom-status-badge").style.color = "#34c759";
+
+            // change the create button to EDIT and X when question is set
+            document.getElementById("btn-custom-create").style.display = "none";
+            document.getElementById("btn-custom-edit").style.display = "block";
+            document.getElementById("btn-custom-clear").style.display = "block";
+
+            closeCustomCreator();
+        }
+
+        // delete custom question set
+        function clearCustomGame() {
+            savedCustomQuestions = null;
+
+            // reset UI
+            document.getElementById("custom-status-badge").innerText = "None";
+            document.getElementById("custom-status-badge").style.background = "rgba(255,255,255,0.1)";
+            document.getElementById("custom-status-badge").style.color = "#aaa";
+
+            // restore create button
+            document.getElementById("btn-custom-create").style.display = "block";
+            document.getElementById("btn-custom-edit").style.display = "none";
+            document.getElementById("btn-custom-clear").style.display = "none";
+
+            // empty the custom question list
+            document.getElementById("custom-questions-list").innerHTML = "";
+            customQuestionCount = 0;
+        }
+    </script>
+</body>
+
+</html>
